@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.bait.waffle",
+      "sha256_cert_fingerprints": ["COLE:AQUI:O:SHA-256:DA:SUA:CHAVE:DE:ASSINATURA"]
+    }
+  }
+]

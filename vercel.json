@@ -1,0 +1,13 @@
+{
+  "crons": [{ "path": "/api/purge-accounts", "schedule": "0 6 * * *" }],
+  "rewrites": [
+    { "source": "/o/:id", "destination": "/api/share?t=o&id=:id" },
+    { "source": "/u/:id", "destination": "/api/share?t=u&id=:id" }
+  ],
+  "headers": [
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [{ "key": "Content-Type", "value": "application/json" }]
+    }
+  ]
+}
