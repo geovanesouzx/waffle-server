@@ -6,7 +6,7 @@
 // Mostra a capa / avatar (prévia bonita no WhatsApp, Instagram...), tenta abrir o app Waffle
 // e, se ele não estiver instalado, oferece baixar a versão publicada em "Atualizações".
 // =====================================================================================
-import { db } from './_lib/firebase.js';
+import { db, avatarDe } from './_lib/firebase.js';
 
 const PACOTE = 'com.bait.waffle';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -36,7 +36,7 @@ async function dados(tipo, id) {
       apk,
       titulo: p.displayName || '@' + id,
       texto: p.bio || `Siga @${id} no Waffle`,
-      imagem: p.avatarImg || `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(p.avatarSeed || p.username || id)}&backgroundColor=E8A83E`,
+      imagem: avatarDe(p),
       info: '@' + (p.username || id),
       avatar: true
     };
@@ -46,7 +46,20 @@ async function dados(tipo, id) {
   }
 }
 
+// /.well-known/assetlinks.json: deixa o Android abrir o app DIRETO pelos links (sem perguntar).
+// A impressão digital vem da variável ANDROID_SHA256 na Vercel (pode ter várias, separadas por vírgula).
+function assetlinks(res) {
+  const shas = String(process.env.ANDROID_SHA256 || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  return res.status(200).send(JSON.stringify([{
+    relation: ['delegate_permission/common.handle_all_urls'],
+    target: { namespace: 'android_app', package_name: PACOTE, sha256_cert_fingerprints: shas }
+  }], null, 2));
+}
+
 export default async function handler(req, res) {
+  if (req.query.t === 'assetlinks') return assetlinks(res);
   const tipo = req.query.t === 'u' ? 'u' : 'o';
   const id = limpo(req.query.id).replace(/[^A-Za-z0-9._\-]/g, '');
   const d = id ? await dados(tipo, id) : {};
@@ -54,7 +67,11 @@ export default async function handler(req, res) {
   const titulo = achou ? d.titulo : 'Waffle';
   const texto = achou ? d.texto : 'Assista animes, séries e filmes, comente e siga seus amigos.';
   const caminho = tipo === 'o' ? `obra/${id}` : `u/${id}`;
-  const intent = `intent://${caminho}#Intent;scheme=waffle;package=${PACOTE};end`;
+  // sem o app instalado, o Android vai direto para o download do APK (quando houver um publicado)
+  const reserva = d.apk ? `S.browser_fallback_url=${encodeURIComponent(d.apk)};` : '';
+  const intent = `intent://${caminho}#Intent;scheme=waffle;package=${PACOTE};${reserva}end`;
+  // tentativa automática ao abrir a página: sem download, só abre o app se ele existir
+  const intentAuto = `intent://${caminho}#Intent;scheme=waffle;package=${PACOTE};end`;
   const url = `https://${req.headers.host}${tipo === 'o' ? '/o/' : '/u/'}${id}`;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -89,6 +106,6 @@ ${d.apk ? `<a class="b sec" href="${esc(d.apk)}">Baixar o app (Android)</a>` : '
 <small>Se nada acontecer ao tocar em "Abrir", instale o Waffle e toque no link de novo.</small>
 </main><script>
 // no Android, tenta abrir o app direto
-if (/Android/i.test(navigator.userAgent)) setTimeout(function(){ location.href = ${JSON.stringify(intent)}; }, 300);
+if (/Android/i.test(navigator.userAgent)) setTimeout(function(){ location.href = ${JSON.stringify(intentAuto)}; }, 300);
 </script></body></html>`);
 }

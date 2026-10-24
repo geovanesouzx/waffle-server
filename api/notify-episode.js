@@ -8,7 +8,7 @@
 // abra o link e clique em "Criar índice" (ou veja o LEIA-ME do app).
 // =====================================================================================
 import { FieldValue } from 'firebase-admin/firestore';
-import { db, quemChamou, corpo, enviarPush, ADMIN_EMAIL, cors } from './_lib/firebase.js';
+import { db, quemChamou, corpo, enviarDados, ADMIN_EMAIL, cors } from './_lib/firebase.js';
 
 export default async function handler(req, res) {
   if (cors(req, res)) return;
@@ -22,6 +22,8 @@ export default async function handler(req, res) {
   const obra = await banco.doc(`content/${contentId}`).get();
   if (!obra.exists) return res.status(404).json({ error: 'obra não encontrada' });
   const titulo = obra.get('title') || 'Um favorito seu';
+  const imagem = obra.get('backdrop') || obra.get('poster') || '';
+  const poster = obra.get('poster') || '';
   const texto = String(text || 'Episódio novo disponível').slice(0, 140);
 
   let favs;
@@ -47,7 +49,10 @@ export default async function handler(req, res) {
   let celulares = 0;
   for (let i = 0; i < uids.length; i += 20) {
     const r = await Promise.all(uids.slice(i, i + 20).map(uid =>
-      enviarPush(uid, 'episode', `Novo episódio de ${titulo}`, texto, { id, contentId }).catch(() => 0)));
+      enviarDados(uid, 'episode', {
+        id, contentId, obra: titulo, texto, imagem, poster, em: Date.now(),
+        title: `Novo episódio de ${titulo}`, body: texto
+      }).catch(() => 0)));
     celulares += r.reduce((a, b) => a + b, 0);
   }
   return res.status(200).json({ users: uids.length, celulares });

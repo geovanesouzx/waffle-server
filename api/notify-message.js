@@ -8,7 +8,7 @@
 // Não manda se a pessoa silenciou a conversa, restringiu quem enviou ou bloqueou.
 // =====================================================================================
 import { FieldValue } from 'firebase-admin/firestore';
-import { db, quemChamou, corpo, enviarDados, cors } from './_lib/firebase.js';
+import { db, quemChamou, corpo, enviarDados, avatarDe, cors } from './_lib/firebase.js';
 
 export default async function handler(req, res) {
   if (cors(req, res)) return;
@@ -53,16 +53,11 @@ export default async function handler(req, res) {
     nome,
     texto,
     avatar: avatarDe(autor),
-    em: m.createdAt?.toMillis?.() ?? Date.now()
+    em: m.createdAt?.toMillis?.() ?? Date.now(),
+    // versões antigas do app só leem title/body
+    title: nome,
+    body: texto
   });
   return res.status(200).json({ enviado: celulares > 0, celulares });
-}
-
-// mesma regra do app (UserProfile.avatarUrl)
-function avatarDe(u) {
-  if (u.avatarImg) return u.avatarImg;
-  if (!u.avatarSeed && u.photoUrl) return u.photoUrl;
-  const seed = u.avatarSeed || u.username || 'waffle';
-  return `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(seed)}&backgroundColor=E8A83E`;
 }
 

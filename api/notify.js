@@ -6,7 +6,7 @@
 // e só se quem chamou é quem fez a ação.
 // =====================================================================================
 import { FieldValue } from 'firebase-admin/firestore';
-import { db, quemChamou, corpo, enviarPush, cors } from './_lib/firebase.js';
+import { db, quemChamou, corpo, enviarDados, avatarDe, cors } from './_lib/firebase.js';
 
 const MAX_IDADE_MS = 10 * 60 * 1000;
 
@@ -36,8 +36,11 @@ export default async function handler(req, res) {
 
   const autor = (await banco.doc(`users/${n.fromUid}`).get()).data() || {};
   const nome = autor.displayName || autor.username || 'Alguém';
-  let obra = '';
-  if (n.contentId) obra = (await banco.doc(`content/${n.contentId}`).get()).get('title') || '';
+  let obra = '', imagem = '';
+  if (n.contentId) {
+    const o = (await banco.doc(`content/${n.contentId}`).get()).data() || {};
+    obra = o.title || ''; imagem = o.backdrop || o.poster || '';
+  }
   const em = obra ? ` em ${obra}` : '';
 
   const textos = {
@@ -49,12 +52,22 @@ export default async function handler(req, res) {
   const [titulo, texto] = textos[n.type] || [];
   if (!titulo) return res.status(200).json({ enviado: false });
 
-  const celulares = await enviarPush(uid, n.type, titulo, texto, {
+  // push SÓ DE DADOS: o app monta a notificação completa (foto de perfil, obra, Responder, Seguir de volta...)
+  const celulares = await enviarDados(uid, n.type, {
     id,
     contentId: n.contentId || '',
     commentId: n.commentId || '',
     parentId: n.parentId || '',
-    uid: n.fromUid
+    uid: n.fromUid,
+    nome,
+    username: autor.username || '',
+    avatar: avatarDe(autor),
+    obra,
+    imagem,
+    texto: n.text || '',
+    em: n.createdAt?.toMillis?.() ?? Date.now(),
+    title: titulo,
+    body: texto
   });
   return res.status(200).json({ enviado: celulares > 0, celulares });
 }

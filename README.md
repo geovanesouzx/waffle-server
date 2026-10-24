@@ -11,7 +11,7 @@ Servidor do app Waffle na Vercel (separado do painel `waffle-admin`). Não tem t
 | `POST /api/test-push` | "Testar notificação" do app |
 | `GET /api/push-status` | o painel confere se o push está configurado |
 | `/o/{obra}` e `/u/{@}` | páginas dos links de compartilhar (abrem o app) |
-| `/.well-known/assetlinks.json` | deixa o Android abrir o app direto pelos links |
+| `/.well-known/assetlinks.json` | deixa o Android abrir o app direto pelos links (gerado da variável `ANDROID_SHA256`) |
 | `/api/purge-accounts` | Cron diário: apaga de vez as contas com exclusão pedida há mais de 7 dias |
 
 ## Variáveis de ambiente (Vercel > Settings > Environment Variables)
@@ -22,11 +22,15 @@ Servidor do app Waffle na Vercel (separado do painel `waffle-admin`). Não tem t
 
 Depois de mudar variáveis, faça um novo deploy (Deployments > ⋯ > Redeploy).
 
-## Abrir o app pelos links (opcional)
-Em `public/.well-known/assetlinks.json`, troque o texto do `sha256_cert_fingerprints` pelo SHA-256 da chave que
-assina o APK (Android Studio > Gradle > signingReport, ou `keytool -list -v -keystore sua-chave.jks`).
-
 ## Avisar episódios novos
 `/api/notify-episode` procura quem favoritou a obra com uma consulta de grupo de coleções em `favorites`.
 O Firestore pede uma isenção de índice uma vez: Firestore > Índices > Isenções de campo único >
 grupo de coleções `favorites`, campo `contentId`, ativar "Escopo do grupo de coleções".
+
+## Links abrindo o app direto (variável ANDROID_SHA256)
+Os links `https://waffle-server.vercel.app/o/...` e `/u/...` já funcionam: a página mostra a obra/perfil e o botão
+"Abrir no Waffle" abre o app (ou baixa o APK, se o app não estiver instalado).
+Para o Android abrir o app **direto**, sem passar pela página, cadastre na Vercel a variável `ANDROID_SHA256`
+com a impressão digital SHA-256 da chave que assina o APK (formato `AA:BB:CC:...`; várias separadas por vírgula,
+por exemplo a de debug e a de release). O `/.well-known/assetlinks.json` é gerado a partir dela.
+Como pegar: Android Studio > aba Gradle > app > Tasks > android > signingReport (linha "SHA-256").

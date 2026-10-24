@@ -81,7 +81,7 @@ export async function enviarPush(uid, tipo, titulo, texto, dados = {}, detalhes 
  * Push SÓ DE DADOS (sem "notification"): o app monta a notificação sozinho, mesmo FECHADO.
  * Usado no chat para a notificação estilo WhatsApp (foto, histórico, Responder).
  */
-export async function enviarDados(uid, tipo, dados = {}) {
+export async function enviarDados(uid, tipo, dados = {}, detalhes = null) {
   const banco = db();
   const prefs = await banco.doc(`users/${uid}/private/notifications`).get();
   if (PREF[tipo] && prefs.exists && prefs.get(PREF[tipo]) === false) return 0;
@@ -102,6 +102,15 @@ export async function enviarDados(uid, tipo, dados = {}) {
     }
     return null;
   }));
+  if (detalhes) detalhes.erros = r.responses.filter(x => !x.success).map(x => x.error?.code || x.error?.message || 'erro');
   return r.successCount;
+}
+
+/** Foto de perfil (mesma regra do app: UserProfile.avatarUrl). */
+export function avatarDe(u = {}) {
+  if (u.avatarImg) return u.avatarImg;
+  if (!u.avatarSeed && u.photoUrl) return u.photoUrl;
+  const seed = u.avatarSeed || u.username || 'waffle';
+  return `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(seed)}&backgroundColor=E8A83E`;
 }
 

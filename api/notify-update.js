@@ -23,9 +23,12 @@ export default async function handler(req, res) {
     const parte = lista.slice(i, i + 500);
     const r = await getMessaging(app()).sendEachForMulticast({
       tokens: parte.map(d => d.get('token')),
-      notification: { title: `Atualização disponível: Waffle ${nome}`, body: texto },
-      data: { tipo: 'update', id: `update_${versionCode}` },
-      android: { priority: 'high', notification: { channelId: 'waffle_social', icon: 'ic_notificacao', color: '#E8A83E', tag: `update_${versionCode}` } }
+      // só dados: o app monta a notificação (com as novidades e o botão Atualizar)
+      data: {
+        tipo: 'update', id: `update_${versionCode}`, versao: nome, texto, notas: String(notes || '').slice(0, 900),
+        title: `Atualização disponível: Waffle ${nome}`, body: texto
+      },
+      android: { priority: 'high' }
     });
     enviados += r.successCount;
     await Promise.all(r.responses.map((x, k) => {
