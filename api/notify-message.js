@@ -6,6 +6,8 @@
 // O push é SÓ DE DADOS: o app monta a notificação estilo WhatsApp (foto, últimas mensagens,
 // Responder, Marcar como lida) mesmo com o app fechado, e marca a mensagem como "entregue".
 // Não manda se a pessoa silenciou a conversa, restringiu quem enviou ou bloqueou.
+// Conversa ARQUIVADA: só manda se a pessoa ligou "Notificações das arquivadas"
+// (users/{uid}/private/notifications.archived; o padrão é não mandar, igual ao WhatsApp).
 // =====================================================================================
 import { FieldValue } from 'firebase-admin/firestore';
 import { db, quemChamou, corpo, enviarDados, avatarDe, cors } from './_lib/firebase.js';
@@ -39,12 +41,16 @@ export default async function handler(req, res) {
   const c = conv.data();
   if (c.muted?.[outro] === true || c.restricted?.[outro] === true) return res.status(200).json({ enviado: false, motivo: 'silenciada' });
   if ((await banco.doc(`users/${outro}/blocked/${eu.uid}`).get()).exists) return res.status(200).json({ enviado: false });
+  if (c.archived?.[outro] === true) {
+    const prefs = await banco.doc(`users/${outro}/private/notifications`).get();
+    if (!(prefs.exists && prefs.get('archived') === true)) return res.status(200).json({ enviado: false, motivo: 'arquivada' });
+  }
 
   const autor = (await banco.doc(`users/${eu.uid}`).get()).data() || {};
   const nome = (c.nicknames?.[eu.uid] || '').trim() || autor.displayName || autor.username || 'Alguém';
   const texto = m.text
-    ? (m.image ? '📷 ' : '') + m.text.slice(0, 300)
-    : m.image ? '📷 Foto' : m.sticker ? 'Figurinha' : 'Nova mensagem';
+    ? (m.video ? '🎥 ' : m.image ? '📷 ' : '') + m.text.slice(0, 300)
+    : m.video ? '🎥 Vídeo' : m.image ? '📷 Foto' : m.sticker ? 'Figurinha' : 'Nova mensagem';
   const celulares = await enviarDados(outro, 'message', {
     id: `msg_${conversa}`,
     conversa,
