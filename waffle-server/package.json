@@ -1,0 +1,11 @@
+{
+  "name": "waffle-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Servidor do app Waffle: notificações push, links de compartilhar e exclusão de contas.",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

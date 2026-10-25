@@ -67,12 +67,15 @@ export default async function handler(req, res) {
   const titulo = achou ? d.titulo : 'Waffle';
   const texto = achou ? d.texto : 'Assista animes, séries e filmes, comente e siga seus amigos.';
   const caminho = tipo === 'o' ? `obra/${id}` : `u/${id}`;
-  // sem o app instalado, o Android vai direto para o download do APK (quando houver um publicado)
-  const reserva = d.apk ? `S.browser_fallback_url=${encodeURIComponent(d.apk)};` : '';
-  const intent = `intent://${caminho}#Intent;scheme=waffle;package=${PACOTE};${reserva}end`;
-  // tentativa automática ao abrir a página: sem download, só abre o app se ele existir
-  const intentAuto = `intent://${caminho}#Intent;scheme=waffle;package=${PACOTE};end`;
   const url = `https://${req.headers.host}${tipo === 'o' ? '/o/' : '/u/'}${id}`;
+  // O Waffle NÃO está na Play Store: os links nunca usam "package=" (com ele, sem o app instalado, o Android
+  // mandava a pessoa para a Play Store). Sem o app:
+  //  - "Abrir no Waffle" cai no download do APK mais recente (/baixar -> GitHub Releases);
+  //  - a tentativa automática volta para esta página com ?sem_app=1 (mostra o botão de baixar em destaque).
+  const baixar = `https://${req.headers.host}/baixar`;
+  const semApp = req.query.sem_app === '1';
+  const intent = `intent://${caminho}#Intent;scheme=waffle;S.browser_fallback_url=${encodeURIComponent(baixar)};end`;
+  const intentAuto = `intent://${caminho}#Intent;scheme=waffle;S.browser_fallback_url=${encodeURIComponent(url + '?sem_app=1')};end`;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
@@ -101,11 +104,15 @@ small{display:block;color:#666;margin-top:18px;font-size:10px}
 ${d.imagem ? `<img class="img${d.avatar ? ' av' : ''}" src="${esc(d.imagem)}" alt="">` : ''}
 <h1>${esc(titulo)}</h1>${d.info ? `<div class="info">${esc(d.info)}</div>` : ''}
 <p class="t">${esc(achou ? texto : (tipo === 'o' ? 'Essa obra não está mais no catálogo.' : 'Esse perfil não existe ou não está disponível.'))}</p>
-<a class="b pri" id="abrir" href="${esc(intent)}">Abrir no Waffle</a>
-${d.apk ? `<a class="b sec" href="${esc(d.apk)}">Baixar o app (Android)</a>` : ''}
-<small>Se nada acontecer ao tocar em "Abrir", instale o Waffle e toque no link de novo.</small>
+${semApp
+  ? `<a class="b pri" href="${esc(baixar)}">Baixar o Waffle (Android)</a>
+<a class="b sec" id="abrir" href="${esc(intent)}">Já tenho o app: abrir</a>
+<small>Você ainda não tem o Waffle. Baixe, instale e toque no link de novo.</small>`
+  : `<a class="b pri" id="abrir" href="${esc(intent)}">Abrir no Waffle</a>
+<a class="b sec" href="${esc(baixar)}">Baixar o app (Android)</a>
+<small>Se nada acontecer ao tocar em "Abrir", baixe o Waffle, instale e toque no link de novo.</small>`}
 </main><script>
-// no Android, tenta abrir o app direto
-if (/Android/i.test(navigator.userAgent)) setTimeout(function(){ location.href = ${JSON.stringify(intentAuto)}; }, 300);
+// no Android, tenta abrir o app direto (sem o app, volta para esta página com o botão de baixar)
+if (!${semApp ? 'true' : 'false'} && /Android/i.test(navigator.userAgent)) setTimeout(function(){ location.href = ${JSON.stringify(intentAuto)}; }, 300);
 </script></body></html>`);
 }
